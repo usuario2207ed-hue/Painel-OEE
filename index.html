@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏭Painel OEE</title>
+<style>
+:root{
+  --green:#2e8b57;
+  --yellow:#f0ad4e;
+  --red:#d9534f;
+  --bg:#f8f9fa;
+  --panel:#ffffff;
+  --muted:#666;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:#222;
+}
+
+header{
+  background:#0b57a4;
+  color:white;
+  padding:12px 18px;
+}
+
+header h1{
+  margin:0 0 8px 0;
+  font-size:20px;
+}
+
+.top-info{
+  display:flex;
+  gap:18px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.gauge{
+  width:220px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  position: relative;
+}
+
+.gauge svg{
+  width:100%;
+  height:auto;
+}
+
+.gauge-text{
+  text-align:center;
+  font-size:14px;
+  position: absolute;
+  bottom:5px;
+  width:100%;
+}
+
+#gauge .gauge-text #oeePercent{
+  font-size:20px;
+  font-weight:bold;
+}
+
+.summary{
+  background:var(--panel);
+  padding:10px;
+  border-radius:6px;
+  color:#222;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+main{
+  padding:16px;
+}
+
+.controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.layout{
+  display:flex;
+  gap:18px;
+  flex-wrap:wrap;
+}
+
+.left-column{
+  flex:1;
+  background:var(--panel);
+  padding:12px;
+  border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  min-width:280px;
+}
+
+.right-column{
+  width:320px;
+  background:var(--panel);
+  padding:12px;
+  border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+
+th,td{
+  border:1px solid #e6e6e6;
+  padding:6px;
+  text-align:center;
+}
+
+.stop-list{
+  max-height:420px;
+  overflow:auto;
+  border:1px solid #eee;
+  padding:6px;
+}
+
+.stop-item{
+  display:flex;
+  justify-content:space-between;
+  padding:6px 4px;
+  border-bottom:1px dashed #efefef;
+  align-items:center;
+}
+
+.quick-stop{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  margin-bottom:8px;
+  flex-wrap:wrap;
+}
+
+.note{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+footer{
+  padding:10px 16px;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+}
+
+@media(max-width:768px){
+  .layout{
+    flex-direction:column;
+  }
+  .right-column{
+    width:100%;
+  }
+  .gauge{
+    width:100%;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OEE - Painel de Produção</h1>
+  <div class="top-info">
+    <div id="gauge" class="gauge">
+      <svg viewBox="0 0 260 150" id="gaugeSvg"></svg>
+      <div class="gauge-text">
+        <div id="oeePercent">0%</div>
+        <small>OEE</small>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div><b>Disponibilidade:</b> <span id="disp">0%</span></div>
+      <div><b>Performance:</b> <span id="perf">0%</span></div>
+      <div><b>Qualidade:</b> <span id="qual">0%</span></div>
+      <div><b>Total Paradas:</b> <span id="totalStops">0 min</span></div>
+      <div><b>Principal Parada:</b> <span id="mainStop">—</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="controls">
+    <label>Data: <input type="date" id="dataInput" /></label>
+    <button id="loadSample">Carregar Exemplo</button>
+    <button id="exportJson">Exportar JSON</button>
+    <input type="file" id="fileLoad" style="display:none" />
+    <button id="importJson">Importar JSON</button>
+  </section>
+
+  <section class="layout">
+    <div class="left-column">
+      <h2>Tabela por Hora</h2>
+      <table id="hourTable">
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th>Tempo (min)</th>
+            <th>Meta de Produção</th>
+            <th>Real</th>
+            <th>Rejeição</th>
+            <th>Paradas (cod)</th>
+            <th>Tempo Parada (min)</th>
+            <th>Planejada?</th>
+            <th>Anotações</th>
+          </tr>
+        </thead>
+        <tbody id="hourBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Total</td>
+            <td id="sumMeta">0</td>
+            <td id="sumReal">0</td>
+            <td id="sumReject">0</td>
+            <td colspan="4"></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="note">Clique em qualquer campo numérico para editar. Mudanças atualizam o painel automaticamente.</div>
+    </div>
+
+    <div class="right-column">
+      <h2>Motivos de Parada</h2>
+      <div id="stopList" class="stop-list"></div>
+
+      <h3>Registrar Parada Rápida</h3>
+      <div class="quick-stop">
+        <select id="quickCod"></select>
+        <input type="number" id="quickTime" placeholder="minutos" min="0" />
+        <label><input type="checkbox" id="quickPlanned" /> Planejada</label>
+        <button id="addQuickStop">Adicionar</button>
+      </div>
+
+      <h3>Salvar / Restaurar</h3>
+      <div class="save-actions">
+        <button id="saveLocal">Salvar (download JSON)</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <small>🧩Desenvolvido por EDCELL-TECH</small>
+</footer>
+
+<script>
+// --- Dados e Lógica ---
+const stopReasons = [
+  "SETUP","Abastecimento","Falta de ponte/empilhadeira","Ajuste de qualidade","Banheiro",
+  "Conferência/inspeção","DDS","Treinamento","Falta de mão de obra","Manutenção preventiva",
+  "Manutenção corretiva","Falta de energia","5S","Falta de matéria-prima","Preenchendo checklist",
+  "Falta de embalagem","Embalando material","Refeição","Sem necessidade de produção","Aguardando engenharia"
+];
+
+const defaultHours = [
+  { label: "7:00 - 8:00", time: 60, meta: 200 },
+  { label: "8:00 - 9:00", time: 60, meta: 200 },
+  { label: "9:00 - 10:00", time: 60, meta: 200 },
+  { label: "10:00 - 11:00", time: 60, meta: 200 },
+  { label: "11:00 - 12:00", time: 60, meta: 200 },
+  { label: "12:00 - 13:00", time: 60, meta: 200 },
+  { label: "13:00 - 14:00", time: 60, meta: 200 },
+  { label: "14:00 - 15:00", time: 60, meta: 200 },
+  { label: "15:00 - 16:00", time: 60, meta: 200 },
+  { label: "16:00 - 17:00", time: 60, meta: 200 },
+  { label: "17:00 - 18:00", time: 60, meta: 200 },
+  { label: "19:00 - 20:00", time: 60, meta: 200 },
+  { label: "20:00 - 21:00", time: 60, meta: 200 },
+  { label: "21:00 - 22:00", time: 60, meta: 200 },
+  { label: "22:00 - 23:00", time: 60, meta: 200 },
+  { label: "23:00 - 00:00", time: 60, meta: 00 },
+  { label: "00:00 - 01:00", time: 60, meta: 00 },
+  { label: "01:00 - 02:00", time: 60, meta: 00 },
+  { label: "02:00 - 03:00", time: 60, meta: 00 },
+  { label: "03:00 - 04:00", time: 60, meta: 00 },
+  { label: "04:00 - 05:00", time: 60, meta: 00 },
+  { label: "05:00 - 06:00", time: 60, meta: 00 },
+];
+
+let dataState = {
+  date: new Date().toISOString().slice(0,10),
+  hours: JSON.parse(JSON.stringify(defaultHours)),
+  stopSums: Array(stopReasons.length).fill(0)
+};
+
+// --- Inicialização ---
+function init(){
+  dataState.hours = dataState.hours.map(h => ({...h, real: h.meta, reject:0, stopCod:null, stopTime:0, planned:false, notes:""}));
+  document.getElementById('dataInput').value = dataState.date;
+  buildHourTable();
+  populateStopReasons();
+  attachEvents();
+  updateAll();
+}
+
+// --- Construção da Tabela ---
+function buildHourTable(){
+  const tbody = document.getElementById('hourBody');
+  tbody.innerHTML = '';
+  dataState.hours.forEach((h, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.label}</td>
+      <td>${h.time}</td>
+      <td class="meta">${h.meta}</td>
+      <td contenteditable="true" data-idx="${idx}" data-field="real">${h.real}</td>
+      <td contenteditable="true" data-idx="${idx}" data-field="reject">${h.reject}</td>
+      <td>
+        <select data-idx="${idx}" data-field="stopCod">
+          <option value="">---</option>
+        </select>
+      </td>
+      <td contenteditable="true" data-idx="${idx}" data-field="stopTime">${h.stopTime}</td>
+      <td>
+        <input type="checkbox" data-idx="${idx}" data-field="planned" ${h.planned ? 'checked':''}/>
+      </td>
+      <td contenteditable="true" data-idx="${idx}" data-field="notes">${h.notes||''}</td>
+    `;
+    tbody.appendChild(tr);
+    const sel = tr.querySelector('select[data-field="stopCod"]');
+    stopReasons.forEach((r,i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.text = `${i+1} - ${r}`;
+      if(h.stopCod !== null && String(h.stopCod) === String(i)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+
+  document.querySelectorAll('[contenteditable="true"]').forEach(el=>{
+    el.addEventListener('input', onCellEdit);
+    el.addEventListener('blur', onCellEdit);
+  });
+  document.querySelectorAll('select[data-field="stopCod"]').forEach(s=>s.addEventListener('change', onSelectChange));
+  document.querySelectorAll('input[type="checkbox"][data-field="planned"]').forEach(cb=>cb.addEventListener('change', onCheckboxChange));
+}
+
+// --- Eventos ---
+function onCellEdit(e){
+  const el = e.target;
+  const idx = Number(el.dataset.idx);
+  const field = el.dataset.field;
+  let val = el.innerText.trim();
+  if(field === 'real' || field === 'reject' || field === 'stopTime') val = parseInt(val)||0;
+  dataState.hours[idx][field] = val;
+  updateAll();
+}
+
+function onSelectChange(e){
+  const sel = e.target;
+  const idx = Number(sel.dataset.idx);
+  const val = sel.value === "" ? null : Number(sel.value);
+  dataState.hours[idx].stopCod = val;
+  updateAll();
+}
+
+function onCheckboxChange(e){
+  const cb = e.target;
+  const idx = Number(cb.dataset.idx);
+  dataState.hours[idx].planned = cb.checked;
+  updateAll();
+}
+
+function populateStopReasons(){
+  const selQuick = document.getElementById('quickCod');
+  selQuick.innerHTML = '';
+  stopReasons.forEach((r,i)=>{
+    const opt = document.createElement('option');
+    opt.value=i;
+    opt.text=`${i+1} - ${r}`;
+    selQuick.appendChild(opt);
+  });
+
+  const stopList = document.getElementById('stopList');
+  stopList.innerHTML='';
+  stopReasons.forEach((r,i)=>{
+    const div = document.createElement('div');
+    div.className='stop-item';
+    div.id=`stop-sum-${i}`;
+    div.innerHTML=`<div>${i+1}. ${r}</div><div><b id="sum-${i}">0</b> min</div>`;
+    stopList.appendChild(div);
+  });
+}
+
+// --- Cálculos ---
+function updateStopSumsAndMain(){
+  const sums = Array(stopReasons.length).fill(0);
+  let totalStopTime=0;
+  dataState.hours.forEach(h=>{
+    if(h.stopCod!==null && h.stopCod!==undefined){
+      const idx=Number(h.stopCod);
+      if(!isNaN(idx) && idx>=0 && idx<sums.length){
+        sums[idx]+=Number(h.stopTime)||0;
+        totalStopTime+=Number(h.stopTime)||0;
+      }
+    } else totalStopTime+=Number(h.stopTime)||0;
+  });
+  dataState.stopSums=sums;
+  sums.forEach((s,i)=>{ const el=document.getElementById(`sum-${i}`); if(el) el.innerText=s; });
+  let max=0, idxMax=-1;
+  sums.forEach((s,i)=>{ if(s>max){max=s; idxMax=i;} });
+  const mainEl=document.getElementById('mainStop');
+  if(idxMax>=0 && max>0){
+    const pct=((max/Math.max(1,totalStopTime))*100).toFixed(1);
+    mainEl.innerText=`${idxMax+1} - ${stopReasons[idxMax]} (${max} min, ${pct}%)`;
+  } else if(totalStopTime===0){ mainEl.innerText='Nenhuma parada registrada'; }
+  else mainEl.innerText='—';
+  document.getElementById('totalStops').innerText=`${totalStopTime} min`;
+  return totalStopTime;
+}
+
+function calcOEE(){
+  const scheduledTime = dataState.hours.reduce((s,h)=>s + Number(h.time||0),0);
+  const totalStopTime = updateStopSumsAndMain();
+  const disponibilidade = Math.max(0,(scheduledTime-totalStopTime)/scheduledTime);
+  const totalMeta = dataState.hours.reduce((s,h)=>s+Number(h.meta||0),0);
+  const totalReal = dataState.hours.reduce((s,h)=>s+Number(h.real||0),0);
+  const performance = totalMeta===0?0:Math.max(0,totalReal/totalMeta);
+  const totalReject = dataState.hours.reduce((s,h)=>s+Number(h.reject||0),0);
+  const qualidade = totalReal===0?0:Math.max(0,(totalReal-totalReject)/totalReal);
+  const oee = disponibilidade*performance*qualidade;
+  const toPct = v=>Math.round(v*100);
+  document.getElementById('disp').innerText=`${toPct(disponibilidade)}%`;
+  document.getElementById('perf').innerText=`${toPct(performance)}%`;
+  document.getElementById('qual').innerText=`${toPct(qualidade)}%`;
+  document.getElementById('oeePercent').innerText=`${toPct(oee)}%`;
+  document.getElementById('sumMeta').innerText=totalMeta;
+  document.getElementById('sumReal').innerText=totalReal;
+  document.getElementById('sumReject').innerText=totalReject;
+  drawGauge(Math.round(oee*100));
+}
+
+// --- Velocímetro ---
+const gaugeSvg = document.getElementById('gaugeSvg');
+function polarToCartesian(cx, cy, r, deg){
+  const rad = (deg - 180) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function drawGauge(percent){
+  const cx=130, cy=130, r=100;
+  const strokeWidth=18;
+  gaugeSvg.innerHTML='';
+  // arco base
+  const startBase=polarToCartesian(cx,cy,r,0);
+  const endBase=polarToCartesian(cx,cy,r,180);
+  const pathBase=document.createElementNS("http://www.w3.org/2000/svg","path");
+  pathBase.setAttribute('d',`M ${startBase.x} ${startBase.y} A ${r} ${r} 0 0 1 ${endBase.x} ${endBase.y}`);
+  pathBase.setAttribute('fill','none');
+  pathBase.setAttribute('stroke','#eee');
+  pathBase.setAttribute('stroke-width',strokeWidth);
+  gaugeSvg.appendChild(pathBase);
+  // arco colorido
+  const endAngle = (percent/100)*180;
+  const startColor = polarToCartesian(cx,cy,r,0);
+  const endColor = polarToCartesian(cx,cy,r,endAngle);
+  const pathColor = document.createElementNS("http://www.w3.org/2000/svg","path");
+  pathColor.setAttribute('d',`M ${startColor.x} ${startColor.y} A ${r} ${r} 0 ${endAngle>180?1:0} 1 ${endColor.x} ${endColor.y}`);
+  pathColor.setAttribute('fill','none');
+  pathColor.setAttribute('stroke',percent>=80?'#2e8b57':(percent>=50?'#f0ad4e':'#d9534f'));
+  pathColor.setAttribute('stroke-width',strokeWidth);
+  pathColor.setAttribute('stroke-linecap','round');
+  gaugeSvg.appendChild(pathColor);
+  // ponteiro
+  const needleLength = r - 25;
+  const needleAngle = endAngle;
+  const needleEnd = polarToCartesian(cx,cy,needleLength,needleAngle);
+  const needle = document.createElementNS("http://www.w3.org/2000/svg","line");
+  needle.setAttribute('x1',cx); needle.setAttribute('y1',cy);
+  needle.setAttribute('x2',needleEnd.x); needle.setAttribute('y2',needleEnd.y);
+  needle.setAttribute('stroke','#333'); needle.setAttribute('stroke-width','3'); needle.setAttribute('stroke-linecap','round');
+  gaugeSvg.appendChild(needle);
+  // círculo central
+  const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  circle.setAttribute('cx',cx); circle.setAttribute('cy',cy); circle.setAttribute('r',5); circle.setAttribute('fill','#333');
+  gaugeSvg.appendChild(circle);
+}
+
+// --- Atualização geral ---
+function updateAll(){
+  dataState.hours.forEach(h=>{
+    h.meta=Number(h.meta||0);
+    h.real=Number(h.real||0);
+    h.reject=Number(h.reject||0);
+    h.stopTime=Number(h.stopTime||0);
+  });
+  calcOEE();
+  const tbody=document.getElementById('hourBody');
+  Array.from(tbody.querySelectorAll('tr')).forEach((tr, idx)=>{
+    const row=dataState.hours[idx];
+    const realCell=tr.querySelector('[data-field="real"]');
+    const rejCell=tr.querySelector('[data-field="reject"]');
+    const stopTimeCell=tr.querySelector('[data-field="stopTime"]');
+    if(realCell && document.activeElement!==realCell) realCell.innerText=row.real;
+    if(rejCell && document.activeElement!==rejCell) rejCell.innerText=row.reject;
+    if(stopTimeCell && document.activeElement!==stopTimeCell) stopTimeCell.innerText=row.stopTime;
+  });
+  dataState.date=document.getElementById('dataInput').value || dataState.date;
+}
+
+// --- Eventos principais ---
+function attachEvents(){
+  document.getElementById('dataInput').addEventListener('change', e=>{ dataState.date=e.target.value; });
+  document.getElementById('addQuickStop').addEventListener('click', ()=>{
+    const cod=Number(document.getElementById('quickCod').value);
+    const t=Number(document.getElementById('quickTime').value)||0;
+    const planned=document.getElementById('quickPlanned').checked;
+    if(isNaN(cod)) return alert('Escolha um código válido');
+    dataState.hours[0].stopCod=cod;
+    dataState.hours[0].stopTime=(Number(dataState.hours[0].stopTime)||0)+t;
+    dataState.hours[0].planned=planned;
+    buildHourTable();
+    updateAll();
+  });
+  document.getElementById('saveLocal').addEventListener('click', ()=>{
+    const dataStr=JSON.stringify(dataState,null,2);
+    const blob=new Blob([dataStr],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`oee_${(dataState.date||'data')}.json`; a.click(); URL.revokeObjectURL(url);
+  });
+  document.getElementById('fileLoad').addEventListener('change', ev=>{
+    const f=ev.target.files[0];
+    if(!f) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const j=JSON.parse(e.target.result);
+        if(j && Array.isArray(j.hours)){ dataState={...dataState,...j}; document.getElementById('dataInput').value=dataState.date||dataState.date; buildHourTable(); updateAll(); }
+        else alert('Arquivo JSON com estrutura inválida.');
+      }catch(err){ alert('Erro ao ler JSON: '+err.message); }
+    };
+    reader.readAsText(f);
+  });
+  document.getElementById('exportJson').addEventListener('click', ()=>document.getElementById('fileLoad').click());
+  document.getElementById('importJson').addEventListener('click', ()=>document.getElementById('fileLoad').click());
+  document.getElementById('loadSample').addEventListener('click', ()=>{
+    dataState={
+      date:new Date().toISOString().slice(0,10),
+      hours:JSON.parse(JSON.stringify(defaultHours)).map(h=>({...h, real:h.meta-2, reject:Math.round(h.meta*0.06), stopCod:null, stopTime:0, planned:false, notes:''})),
+      stopSums:Array(stopReasons.length).fill(0)
+    };
+    dataState.hours[1].stopCod=1; dataState.hours[1].stopTime=12;
+    dataState.hours[4].stopCod=3; dataState.hours[4].stopTime=8;
+    buildHourTable(); updateAll();
+  });
+}
+
+init();
+</script>
+
+</body>
+</html>
