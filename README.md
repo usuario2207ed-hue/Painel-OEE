@@ -12,20 +12,15 @@ O painel permite registrar paradas, identificar a principal causa de interrupç�
 
 ---
 
-Pode ser usado direto no navegador ou instalado como um **aplicativo** no celular/PC.
+Pode ser usado direto no navegador do seu PC.
 
 ---
 
 ### 🚀 Como usar
 1. Acesse o app neste link:  
-   👉 https://usuario2207ed-hue.github.io/MyDoc/ 
+   👉 https://usuario2207ed-hue.github.io/MyDoc/   
 
-2. No navegador do **celular (Chrome/Edge)**:  
-   - Abra o menu (⋮)  
-   - Toque em **"Adicionar à tela inicial"**  
-   - O app será instalado com ícone na sua tela inicial.  
-
-3. No **PC (Chrome/Edge)**:  
+2. No **PC (Chrome/Edge)**:  
    - Clique no ícone `+` na barra de endereços  
    - Confirme em **"Instalar"**  
 
