@@ -18,7 +18,7 @@ Pode ser usado direto no navegador do seu PC.
 
 ### 🚀 Como usar
 1. Acesse o app neste link:  
-   👉 https://usuario2207ed-hue.github.io/MyDoc/   
+   👉 https://usuario2207ed-hue.github.io/Painel-OEE/   
 
 2. No **PC (Chrome/Edge)**:  
    - Clique no ícone `+` na barra de endereços  
